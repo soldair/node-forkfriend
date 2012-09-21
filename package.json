@@ -1,0 +1,22 @@
+{
+  "name": "forkboss",
+  "version": "0.0.0",
+  "description": "worker child process manager. respawn children. load balance work amongst children.",
+  "main": "index.js",
+  "scripts": {
+    "test": "tap test/*.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/soldair/node-forkboss.git"
+  },
+  "keywords": [
+    "workers",
+    "childprocess",
+    "respawn",
+    "loadbalance",
+    "ipc"
+  ],
+  "author": "Ryan Day",
+  "license": "BSD"
+}
