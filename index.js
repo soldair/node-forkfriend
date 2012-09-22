@@ -38,7 +38,7 @@ _ext(Manager.prototype,{
         var unsent = [];
         while(worker.buffer.length) {
           msg = worker.buffer.shift();
-          lastWorker = z.balance(worker);
+          lastWorker = z._balance(worker);
 
           if(lastWorker) lastWorker.send(msg);
           else unsent.push(msg);
@@ -57,19 +57,35 @@ _ext(Manager.prototype,{
       // add any unsent to the buffer again.
       if(unsent.length) worker.buffer.push.apply(worker.buffer,unsent);
 
-
       if(worker.buffer.length > z.config.maxQueue){
         z.emit('drop',key,worker.buffer.shift());
       }
     });
   },
-  add:function(worker,args,options,cb){
+  add:function(worker,args,num){
 
     var z = this;
     if(worker.ForEach) {
       worker.forEach(function(w){
-        z.add(w,args);
+        z.add(w,args,pool);
       });
+      return;
+    }
+
+    if(args && !args instanceof Array) {
+      num = +args;
+      args = [];
+    }
+
+    if(num !== undefined){
+      num = +num;
+      if(num > 0 && !isNaN(num)) {
+        while(num > 0) {
+          num--;
+          z.add(worker,args);
+        }
+        return true;
+      }
       return;
     }
 
@@ -94,19 +110,19 @@ _ext(Manager.prototype,{
       var cp = fork(worker,args);
       var removed = false;
 
-      z.emit('worker',worker,args);
+      z.emit('worker',worker,args,cp);
 
       cp.on('error',function(e){
-        z.emit('worker-error',e,cp);
+        z.emit('worker-error',e,worker,args,cp);
       });
 
-      var handleExit = function(){
+      var handleExit = function(code){
         if(removed) return false;
         removed = true;
 
         var i = z.workers[worker].process.indexOf(cp);
         z.workers[worker].process.splice(i,1);
-        z.emit('worker-exit',worker,args);
+        z.emit('worker-exit',code,worker,args,cp);
         if(z.stopped) return;
         z.add(worker,args)
       };
@@ -114,13 +130,13 @@ _ext(Manager.prototype,{
       cp.on('disconnect',function(){
         //if i cant talk to it im just gonna kill it
         //child can handle and not die if it really wants
-        z.emit('worker-disconnect')
+        z.emit('worker-disconnect',worker,args,cp)
         cp.kill();
-        handleExit();
+        handleExit(0);
       });
 
       cp.on('exit',function(code){
-        handleExit();
+        handleExit(code);
       });
 
       cp.on('message',function(message){
@@ -137,10 +153,26 @@ _ext(Manager.prototype,{
   remove:function(key,cp){
     var z = this;
     if(!z.workers[key]) return;
+
+    // if child process is not defined just remove one.
+    if(cp === undefined) {
+      cp = z.workers[key].process[0];
+    } else if(typeof cp == 'number'){
+      while(cp > 0) {
+        cp--;
+        z.remove(key);
+      }
+      return;
+    }
+
     var i = z.workers[key].process.indexOf(cp);
     if(i === -1) return;
+
     z.workers[key].process.splice(i,1);
     cp.kill();
+  },
+  get:function(key){
+    return (this.workers[key]||{}).process;
   },
   stop:function(){
     var z = this;
@@ -157,7 +189,7 @@ _ext(Manager.prototype,{
     this.remove(key,cp);
     this.add(key,this.workers[key].args)
   },
-  balance:function(obj){
+  _balance:function(obj){
     if(!obj._c) obj._c = 0;
     obj._c++;
     // quick round robin
