@@ -1,3 +1,6 @@
+
+[![Build Status](https://secure.travis-ci.org/soldair/node-forkfriend.png)](http://travis-ci.org/soldair/node-forkfriend)
+
 # forkfriend
 
 ## example
