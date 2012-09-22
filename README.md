@@ -10,11 +10,14 @@
 var forkfriend = require('friend');
 var friend = forkfriend();
 
-friend.add('somefriend.js',['-a',1]);
-// workers for the same file get the same args as the first
+// make 3 somefriend.js worker with arguments
+friend.add('somefriend.js',['-a',1],3);
+
+// workers for the same file get the same args as the first. 
+// multiple calls to add add that many more to the pool
 friend.add('somefriend.js')
 
-friend.send('hey work on this you guys');
+friend.send('hey one of you work on this');
 
 friend.on('message',function(message,workername,worker){
   // message is the data the child sent.
