@@ -2,6 +2,7 @@
 [![Build Status](https://secure.travis-ci.org/soldair/node-forkfriend.png)](http://travis-ci.org/soldair/node-forkfriend)
 
 # forkfriend
+dead simple worker process manager. respawn children. load balance work amongst children.
 
 ## example
 
@@ -35,7 +36,8 @@ friend.stop();
 ## api
 
 
-forkfriend(options)
+forkfriend 
+  forkfriend(options)
   - options {} [optional]
     - respawnInterval
       - defaults to 500 ms. this is the max speed that new children will be spawned to prevent pegging the cpu on broken workers

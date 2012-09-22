@@ -1,7 +1,7 @@
 {
   "name": "forkfriend",
   "version": "0.0.0",
-  "description": "super simple worker child process manager. respawn children. load balance work amongst children.",
+  "description": "dead simple worker child process manager. respawn children. load balance work amongst children.",
   "main": "index.js",
   "devDependencies":{
     "tap":"~0.3.1"
@@ -11,7 +11,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/soldair/node-forkboss.git"
+    "url": "git://github.com/soldair/node-forkfriend.git"
   },
   "keywords": [
     "workers",
