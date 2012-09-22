@@ -36,7 +36,8 @@ friend.stop();
 ## api
 
 
-forkfriend 
+forkfriend
+ 
   forkfriend(options)
   - options {} [optional]
     - respawnInterval
@@ -46,6 +47,7 @@ forkfriend
   - returns "friend" an EventEmitter
 
 friend
+
   - add(script,arguments [optional],num [optional])
   - add(script,num [optional])
     - script is the path to the javascript file you want to fork
