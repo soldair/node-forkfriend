@@ -31,6 +31,7 @@ friend.stop();
 
 ```
 
+
 ## api
 
 
@@ -78,7 +79,21 @@ friend events
     - a worker has had an error event, the friend will try to refork it.
   - drop
     - too many messages could not be sent to the workers for this script.
-  
+
+
+## what does a worker look like
+
+```js
+
+process.on('message',function(data){
+  // do somthing
+  // tell friend about it
+  process.send('hey i worked onn '+data);
+});
+
+
+```
+ 
 ## woo hooo.
 
 let me know if this is helpful or if you have any issues.
