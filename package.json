@@ -1,5 +1,5 @@
 {
-  "name": "forkboss",
+  "name": "forkfriend",
   "version": "0.0.0",
   "description": "worker child process manager. respawn children. load balance work amongst children.",
   "main": "index.js",

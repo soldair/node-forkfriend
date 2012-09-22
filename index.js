@@ -11,7 +11,7 @@ module.exports = function(config){
 function Manager(config){
   this.config = config||{};
   this.config.maxQueue = this.config.maxQueue||100;
-  this.config.respawnInterval = this.config.respawnInterval||100;
+  this.config.respawnInterval = this.config.respawnInterval||500;
 }
 
 util.inherits(Manager,EventEmitter);
@@ -21,37 +21,50 @@ _ext(Manager.prototype,{
   stopped:false,
   send:function(data,key){
     var z = this;
-    Object.keys(key?[key]:this.workers).forEach(function(k){
+    var toLoop = key?[key]:Object.keys(this.workers);
+    toLoop.forEach(function(k){
       var worker = z.workers[k]
       ,msg
       ,lastWorker
       ;
-      if(!worker) return;
 
-      worker.buffer.push(data);
+      if(!worker) return;
+      if( typeof data != 'undefined' ) {
+        worker.buffer.push(data);
+      }
+      if(!worker.buffer.length) return;
 
       try{
+        var unsent = [];
         while(worker.buffer.length) {
           msg = worker.buffer.shift();
           lastWorker = z.balance(worker);
+
           if(lastWorker) lastWorker.send(msg);
+          else unsent.push(msg);
         }
       } catch (e) {
         if(lastWorker) lastWorker.kill();
 
         worker.errors++;
         worker.lastError = Date.now();
+
         process.nextTick(function(){
           z.send(msg,k);    
         });
       }
 
-      if(worker.buffer.length > maxQueue){
+      // add any unsent to the buffer again.
+      if(unsent.length) worker.buffer.push.apply(worker.buffer,unsent);
+
+
+      if(worker.buffer.length > z.config.maxQueue){
         z.emit('drop',key,worker.buffer.shift());
       }
     });
   },
-  add:function(worker,args){
+  add:function(worker,args,options,cb){
+
     var z = this;
     if(worker.ForEach) {
       worker.forEach(function(w){
@@ -59,6 +72,7 @@ _ext(Manager.prototype,{
       });
       return;
     }
+
     if(!z.workers[worker]){
       z.workers[worker] = {
         args:args,
@@ -70,21 +84,53 @@ _ext(Manager.prototype,{
       };
     }
 
-    var timeout = 500-(Date.now()-z.workers[worker].lastFork);
+    var timeout = this.config.respawnInterval-(Date.now()-z.workers[worker].lastFork);
     if(timeout < 0) timeout = 0;
 
     z.workers[worker].lastFork = Date.now();
     setTimeout(function(){
-      var cp = fork(worker,args);
+      if(z.stopped) return;
 
-      cp.on('exit',function(code){
+      var cp = fork(worker,args);
+      var removed = false;
+
+      z.emit('worker',worker,args);
+
+      cp.on('error',function(e){
+        z.emit('worker-error',e,cp);
+      });
+
+      var handleExit = function(){
+        if(removed) return false;
+        removed = true;
+
         var i = z.workers[worker].process.indexOf(cp);
         z.workers[worker].process.splice(i,1);
+        z.emit('worker-exit',worker,args);
         if(z.stopped) return;
         z.add(worker,args)
+      };
+
+      cp.on('disconnect',function(){
+        //if i cant talk to it im just gonna kill it
+        //child can handle and not die if it really wants
+        z.emit('worker-disconnect')
+        cp.kill();
+        handleExit();
+      });
+
+      cp.on('exit',function(code){
+        handleExit();
+      });
+
+      cp.on('message',function(message){
+        z.emit('message',message,worker,cp);
       });
 
       z.workers[worker].process.push(cp);
+
+      // drain any messages that were queued.
+      z.send(undefined);
 
     },timeout);
   },
@@ -97,6 +143,7 @@ _ext(Manager.prototype,{
     cp.kill();
   },
   stop:function(){
+    var z = this;
     this.stopped = true;
     Object.keys(this.workers).forEach(function(k){
         var w = z.workers[k];
