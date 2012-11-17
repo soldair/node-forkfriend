@@ -38,7 +38,7 @@ _ext(Manager.prototype,{
         var unsent = [];
         while(worker.buffer.length) {
           msg = worker.buffer.shift();
-          lastWorker = z._balance(worker);
+          lastWorker = z.balance(worker);
 
           if(lastWorker) lastWorker.send(msg);
           else unsent.push(msg);
@@ -189,7 +189,8 @@ _ext(Manager.prototype,{
     this.remove(key,cp);
     this.add(key,this.workers[key].args)
   },
-  _balance:function(obj){
+  // overload this function to provide your own balancing method. stickyness etc
+  balance:function(obj){
     if(!obj._c) obj._c = 0;
     obj._c++;
     // quick round robin

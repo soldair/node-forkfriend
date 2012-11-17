@@ -45,6 +45,9 @@ forkfriend
     - maxQueue 
       - defaults to 100. this is the maximum number of pending messages for workers that should be held while waiting for a functional worker to spawn. after this messages will be dropped but a drop event will be emitted so you application can choose how to handle the issue.
   - returns "friend" an EventEmitter
+  forkfriend.balance()
+  - this method handles round robin for messages of a worker type
+    - overload this method to implement sticky balancing etc.
 
 friend
 
@@ -83,6 +86,7 @@ friend events
     - a worker has had an error event, the friend will try to refork it.
   - drop
     - too many messages could not be sent to the workers for this script.
+
 
 
 ## what does a worker look like
