@@ -38,7 +38,7 @@ _ext(Manager.prototype,{
         var unsent = [];
         while(worker.buffer.length) {
           msg = worker.buffer.shift();
-          lastWorker = z.balance(worker);
+          lastWorker = z.balance(worker,msg);
 
           if(lastWorker) lastWorker.send(msg);
           else unsent.push(msg);
