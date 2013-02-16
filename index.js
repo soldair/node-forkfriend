@@ -269,6 +269,7 @@ methods = {
     this.remove(key,cp);
     this.add(key,this.workers[key].args)
   },
+<<<<<<< HEAD
   _childDrained:function(worker,cp){
     // when a worker is unpaused we need need to loop available workers
     var paused = 0,z = this;
@@ -310,8 +311,11 @@ methods = {
     });
 
     if(pausedWorkers == workerData.process.length) paused = true; 
-    return paused;    
-  }
+    return paused; 
+  },
+  // overload this function to provide your own balancing method. stickyness etc
+  balance:balance
+  //TODO
 };
 
 function _ext(o1,o2){
