@@ -163,9 +163,8 @@ methods = {
       args = [];
     }
 
-    if(num !== undefined){
+    if(!isNaN(num)){
       num = +num;
-      console.log('i need',num,'procs for this worker');
       if(num > 0 && !isNaN(num)) {
         while(num > 0) {
           num--;
@@ -176,7 +175,6 @@ methods = {
       return;
     }
 
-    console.log('adding worker process');
     if(!z.workers[worker]){
       z.workers[worker] = {
         args:args,
@@ -280,8 +278,6 @@ methods = {
     if(i === -1) return;
 
     z.workers[key].process.splice(i,1);
-    // if i have been upgraded to a stream i need to
-    if(z.stream) cp.send({__forkfriend:'end'});
     process.nextTick(function(){
       cp.kill();
     });
@@ -350,6 +346,7 @@ methods = {
         z._childDrained(worker);
       }
     },100);
+    
     return this._checkWorkersPaused(workerData);
   },
   _childPaused:function(worker,cp){
@@ -362,7 +359,13 @@ methods = {
   _checkWorkersPaused:function(workerData){
     var pausedWorkers = 0,paused = false;
     workerData.process.forEach(function(cp){
-      if(cp.paused) ++pausedWorkers;
+      if(cp.paused) {
+        // recover lost children
+        if(Date.now()-cp.paused > this.config.pausedWorkerTimeout){
+          cp.kill(); 
+        }
+        ++pausedWorkers;
+      }
       // if the ipc channel is saturated i set this flag.
       else if(cp.buffering) ++pausedWorkers;
     });
