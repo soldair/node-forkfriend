@@ -6,6 +6,38 @@ dead simple worker process manager. respawn children. load balance work amongst 
 
 ## example
 
+Stream api.
+
+If you are going to do any meaningful amount of work you already have a stream.
+A stream abstraction is essential because the IPC channel WILL get backed up until the process is killed or you run out of memory and everything starts to suck.
+The manager is a Duplex Stream so just pipe in and pipe out the results.
+Workers need not send back results. But if they do those will be emitted as message/data events on the manager.
+
+```js
+var fs = require('fs');
+// you will need some sort of transform stream to change the buffers into distinct messages.
+// the child process manager load balances "messages" ie calls to send()
+// each data event sent to the manager must be a distinct message in this 
+var lineStream = require('line-stream');
+
+var forkfriend = require('forkfriend');
+
+var manager = forkfriend();
+// fork 4 processes of worker.js
+// the messages will be distributed across all 4 processes in a round robin/first available scheme
+manager.add('./worker.js',4);
+
+fs.createReadStream('application.log')
+.pipe(lineStream())
+.pipe(manager)
+.pipe(fs.createWriteStream('processed.log'));
+
+```
+
+Process Send api.
+This is useful if you just need to keep a set of child processes running but do not need to send a high volume of data.
+You may send as much data as you want but know you should pause if send returns false.
+
 ```js
 
 var forkfriend = require('friend');
@@ -18,6 +50,7 @@ friend.add('somefriend.js',['-a',1],3);
 // multiple calls to add add that many more to the pool
 friend.add('somefriend.js')
 
+// if send returns false you should wait for the drain event before sending more data.
 friend.send('hey one of you work on this');
 
 friend.on('message',function(message,workername,worker){
@@ -28,7 +61,6 @@ friend.on('message',function(message,workername,worker){
 
 // when you are all done
 friend.stop();
-
 
 ```
 
@@ -71,9 +103,22 @@ friend
     - stops the show. kills all child processes so your script can exit cleanly.
   - refork (script, cp ChildProcess [optional])
     - kill and start a specific worker or any in the pool
+  stream
+  - write
+  - pause
+  - resume
+  
 
 friend events
 
+  stream
+  - data
+    - this is a result message from a worker.
+  - pause
+    - if the pipes got backed up this will be emitted. a drain will be issued when data is processing again.
+  - drain
+    - any pending events have been sent and the stream is ready for more writing.
+  process
   - message (message,script,args,cp ChildProcess)
     - a worker has sent you a message
   - worker (script,args,cp ChildProcess)
@@ -86,7 +131,6 @@ friend events
     - a worker has had an error event, the friend will try to refork it.
   - drop
     - too many messages could not be sent to the workers for this script.
-
 
 
 ## what does a worker look like

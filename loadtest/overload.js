@@ -1,12 +1,7 @@
-var memwatch = require('memwatch');
 var fs = require('fs');
 var zlib = require('zlib');
 var linestream = require('line-stream')
 var mem = require('../lib/mem.js')
-
-memwatch.on('leak',function(info){
-   console.log('leak',info); 
-});
 
 var manager = require('../index.js')();
 manager.add(__dirname+'/../test/workers/c.js',2);

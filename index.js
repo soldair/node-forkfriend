@@ -1,5 +1,6 @@
 var util = require('util')
 , fork = require('child_process').fork
+, duplex = require('duplex')
 , through = require('through')
 , balance = require('./lib/balance')
 , methods
@@ -9,7 +10,7 @@ module.exports = function(config){
   // i am a stream!!
   // though i may be better represented in the future by a duplex stream.
   var manager = through(function(data){
-    this.queue(data); 
+    this.send(data);
   });
 
   _ext(manager,methods);
@@ -31,41 +32,14 @@ module.exports = function(config){
   manager.config.pausedWorkerTimeout = manager.config.lostInTheWoods = config.pausedWorkerTimeout||config.lostInTheWoods||-1;
   manager.stats = {paused:0,messages:0,length:0,start:Date.now(),pauses:0,drains:0};
   manager.workers = {};
+  manager.workerStreams = {};
   manager.stopped = false;
-
-  var write = manager.write;
-  manager.write = function(data){
-    // when write is called this opts into new stream api use
-    manager.stream = true;
-    manager.emit('stream');
-    console.log('write called on manager im being used as a stream!!');
-    manager.write = write;
-    manager.write(data);
-  }
 
   // if end is fired i need to stop the show.
   manager.on('end',function(){
-    console.log('manager end');
     this.stop();
   });
 
-  // send data events to all workers.
-  manager.on('data',function(data){
-
-    //console.log('manager data ',arguments);
-    // any calls that get here must be sent
-    var success = this.send(data);
-    manager.stats.messages+=1;
-    if(data && data.length) {
-      manager.stats.length += data.length;
-    }
-    // if i cant send i need to pause.
-    // ill need to trust that a child will exit and be respawned or return an unpause event.
-    if(!success) {
-      this.pause();
-    }
-
-  });
   manager.on('pause',function(){
     manager.stats.pauses++;
     manager.stats.pauseStart = Date.now();
@@ -78,25 +52,13 @@ module.exports = function(config){
     manager.stats.drains++;
   });
 
-  manager.getStats = function(){
-    var elapsed = Date.now()-this.stats.start;
-    var report = {}; 
-    report.messagesPerMs = this.stats.messages/elapsed;
-    report.bytesPerMs = this.stats.length/elapsed;
-    report.percentPaused = (this.stats.paused?(this.stats.paused*100/elapsed):0);
-    report.elapsed = elapsed;
-    report.paused = this.stats.paused;
-    report.pauses = this.stats.pauses;
-    report.drains = this.stats.drains;
-    return report;
-  }
-
   return manager;
 };
 
 //manager api.
 methods = {
   workers:{},
+  workerStreams:{},
   stopped:false,
   send:function(data,key){
     var z = this;
@@ -106,6 +68,11 @@ methods = {
       ,msg
       ,lastWorker
       ;
+      // stats.
+      z.stats.messages+=1;
+      if(data && data.length) {
+        z.stats.length += data.length;
+      }
 
       if(!worker) return;
       if( typeof data != 'undefined' ) worker.buffer.push(data);
@@ -117,10 +84,11 @@ methods = {
           msg = worker.buffer.shift();
 
           var pool = z.filter(worker.process); 
-          lastWorker = z.balance(pool);
+          lastWorker = z.balance(pool,msg);
 
           if(lastWorker) {
             var buffered = !lastWorker.send(msg);
+
             if(buffered && !lastWorker.buffering) {
               z._childBuffering(k,lastWorker);
             }
@@ -146,6 +114,10 @@ methods = {
         z.emit('drop',key,worker.buffer.shift());
       }
     });
+
+    if(this.paused){
+      this.pause();
+    }
     return !this.paused;
   },
   add:function(worker,args,num){
@@ -250,6 +222,10 @@ methods = {
           }
         } else {
           z.emit('message',message,worker,cp);
+          if(z.workerStreams[worker]) {
+            z.workerStreams[worker].emit('data',message);
+          }
+          z.emit('data',message);
         }
       });
 
@@ -293,20 +269,28 @@ methods = {
         var w = z.workers[k];
         w.process.forEach(function(cp,i){
           w.process.splice(i,1);
-          //
-          //should this send a hey im ending now message so children can enjoy a clean exit?
-          //its probably kinda pointless because the only clean exit can happen binding sighandlers anyway.
-          //
           process.nextTick(function(){
             cp.kill();
           });
         });
+    });
+
+    Object.keys(z.workerStreams).forEach(function(k){
+       z.workerStreams[k].end();   
     });
     if(!this.ended) this.emit('end');    
   },
   refork:function(key,cp){
     this.remove(key,cp);
     this.add(key,this.workers[key].args)
+  },
+  getWorkerStream:function(key){
+    var stream = false;
+    if(this.workers[key]){
+      stream = this.workerStreams[key];
+      if(!stream) stream = this.workerStreams[key] = through();
+    }
+    return stream;
   },
   _childDrained:function(worker,cp){
     // when a worker is unpaused we need need to loop available workers
@@ -376,7 +360,18 @@ methods = {
     }
     return paused; 
   },
-  // overload this function to provide your own balancing method. stickyness etc
+  getStats:function(){
+    var elapsed = Date.now()-this.stats.start;
+    var report = {}; 
+    report.messagesPerMs = this.stats.messages/elapsed;
+    report.bytesPerMs = this.stats.length/elapsed;
+    report.percentPaused = (this.stats.paused?(this.stats.paused*100/elapsed):0);
+    report.elapsed = elapsed;
+    report.paused = this.stats.paused;
+    report.pauses = this.stats.pauses;
+    report.drains = this.stats.drains;
+    return report;
+  },
   balance:balance,
   filter:function(processes){
     // right now buffering status on a child process is not evented. this sucks.
@@ -388,7 +383,6 @@ methods = {
     }
     return a;
   }
-  //TODO
 };
 
 function _ext(o1,o2){
