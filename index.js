@@ -1,6 +1,5 @@
 var util = require('util')
 , fork = require('child_process').fork
-, duplex = require('duplex')
 , through = require('through')
 , balance = require('./lib/balance')
 , methods
