@@ -361,7 +361,7 @@ methods = {
     workerData.process.forEach(function(cp){
       if(cp.paused) {
         // recover lost children
-        if(Date.now()-cp.paused > this.config.pausedWorkerTimeout){
+        if(this.config.pausedWorkerTimeout > -1 && Date.now()-cp.paused > this.config.pausedWorkerTimeout){
           cp.kill(); 
         }
         ++pausedWorkers;
