@@ -340,11 +340,11 @@ methods = {
     return this._checkWorkersPaused(workerData);
   },
   _checkWorkersPaused:function(workerData){
-    var pausedWorkers = 0,paused = false;
+    var pausedWorkers = 0,paused = false,z = this;
     workerData.process.forEach(function(cp){
       if(cp.paused) {
         // recover lost children
-        if(this.config.pausedWorkerTimeout > -1 && Date.now()-cp.paused > this.config.pausedWorkerTimeout){
+        if(z.config.pausedWorkerTimeout > -1 && Date.now()-cp.paused > z.config.pausedWorkerTimeout){
           cp.kill(); 
         }
         ++pausedWorkers;

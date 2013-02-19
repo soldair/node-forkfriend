@@ -1,6 +1,6 @@
 {
   "name": "forkfriend",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "dead simple worker child process manager. respawn children. load balance work amongst children.",
   "main": "index.js",
   "dependencies": {
