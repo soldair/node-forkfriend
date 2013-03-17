@@ -293,8 +293,9 @@ methods = {
   },
   refork:function(key,cp){
     var args = this.workers[key].args;
-    this.remove(key,cp);
-    this.add(key,args)
+    var procs = this.workers[key].runCount;
+    this.remove(key,procs);
+    this.add(key,args,procs);
   },
   getWorkerStream:function(key){
     var stream = false;
