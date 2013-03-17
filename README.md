@@ -4,7 +4,42 @@
 # forkfriend
 dead simple worker process manager. respawn children. load balance work amongst children.
 
+there are a some obvious use cases. 
+- sending loads of data to a cluster of distinct worker processes. (event queue processing / subscribers)
+- keeping workers running from a light managment process.
+
 ## example
+
+
+Process Send / Manager api.
+This is useful if you just need to keep a set of child processes running but do not need to send a high volume of data.
+You may send as much data as you want but know you should pause if send returns false.
+
+```js
+
+var forkfriend = require('friend');
+var friend = forkfriend();
+
+// make 3 somefriend.js worker with arguments
+friend.add('somefriend.js',['-a',1],3);
+
+// workers for the same file get the same args as the first. 
+// multiple calls to add add that many more to the pool
+friend.add('somefriend.js')
+
+// if send returns false you should wait for the drain event before sending more data.
+friend.send('hey one of you work on this');
+
+friend.on('message',function(message,workername,worker){
+  // message is the data the child sent.
+  // workername === 'somefriend.js'
+  // worker instanceof ChildProcess
+})
+
+// when you are all done
+friend.stop();
+
+```
 
 Stream api.
 
@@ -34,35 +69,6 @@ fs.createReadStream('application.log')
 
 ```
 
-Process Send api.
-This is useful if you just need to keep a set of child processes running but do not need to send a high volume of data.
-You may send as much data as you want but know you should pause if send returns false.
-
-```js
-
-var forkfriend = require('friend');
-var friend = forkfriend();
-
-// make 3 somefriend.js worker with arguments
-friend.add('somefriend.js',['-a',1],3);
-
-// workers for the same file get the same args as the first. 
-// multiple calls to add add that many more to the pool
-friend.add('somefriend.js')
-
-// if send returns false you should wait for the drain event before sending more data.
-friend.send('hey one of you work on this');
-
-friend.on('message',function(message,workername,worker){
-  // message is the data the child sent.
-  // workername === 'somefriend.js'
-  // worker instanceof ChildProcess
-})
-
-// when you are all done
-friend.stop();
-
-```
 
 
 ## api
