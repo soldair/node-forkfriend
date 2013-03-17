@@ -148,6 +148,7 @@ methods = {
 
     if(!z.workers[worker]){
       z.workers[worker] = {
+        runCount:0,
         args:args,
         process:[],
         buffer:[],
@@ -161,10 +162,16 @@ methods = {
     var timeout = this.config.respawnInterval-(Date.now()-z.workers[worker].lastFork);
     if(timeout < 0) timeout = 0;
 
+    z.workers[worker].runCount++;
     z.workers[worker].lastFork = Date.now();
     setTimeout(function(){
       if(z.stopped) return;
-
+      if(!z.workers[worker] || z.workers[worker].runCount <= z.workers[worker].process.length){
+        // before this worker process was started the process count was changed. 
+        // this  is no longer needed.
+        z.emit('worker-aborted',worker);
+        return;
+      }
       var cp = fork(worker,args);
       z.workers[worker].process.push(cp);
 
@@ -235,6 +242,7 @@ methods = {
     },timeout);
   },
   remove:function(key,cp){
+
     var z = this;
     if(!z.workers[key]) return;
 
@@ -249,7 +257,11 @@ methods = {
       return;
     }
 
+
     var i = z.workers[key].process.indexOf(cp);
+    if(z.workers[key].runCount) z.workers[key].runCount--;
+    if(!z.workers[key].runCount) delete z.workers[key];
+
     if(i === -1) return;
 
     z.workers[key].process.splice(i,1);
