@@ -6,7 +6,7 @@ dead simple worker process manager. respawn children. load balance work amongst 
 
 there are a some obvious use cases. 
 - sending loads of data to a cluster of distinct worker processes. (event queue processing / subscribers)
-- keeping workers running from a light managment process.
+- keeping one or many kinds of worker process clusters running from a light managment process.
 
 ## example
 
