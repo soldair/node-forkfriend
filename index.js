@@ -292,8 +292,9 @@ methods = {
     if(!this.ended) this.emit('end');    
   },
   refork:function(key,cp){
+    var args = this.workers[key].args;
     this.remove(key,cp);
-    this.add(key,this.workers[key].args)
+    this.add(key,args)
   },
   getWorkerStream:function(key){
     var stream = false;
