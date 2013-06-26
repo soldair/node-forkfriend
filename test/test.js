@@ -1,5 +1,5 @@
 var test = require('tap').test
-, forkfriend = require(__dirname+'/../index.js')
+, forkfriend = require('../index.js')
 ;
 
 test('can manage',function(t){
@@ -56,13 +56,13 @@ test('remove worker',function(t){
     messages.push(message);
     var interval;
     if(hit++) {
-      clearInterval(interval);
+      clearTimeout(interval);
       t.fail('got an extra unexpected message when removing workers');
 
       friend.stop();
       t.end();
     } else {
-      setTimeout(function(){
+      interval = setTimeout(function(){
         t.equals(messages.length,1,'should have only gotten one message');
 
         friend.stop();
@@ -72,7 +72,7 @@ test('remove worker',function(t){
   });
 
   friend.on('worker-aborted',function(){
-    t.ok('should worker aborted event');    
+    t.ok(1,'should worker aborted event');    
   });
 
   friend.add(__dirname+'/workers/a.js');
@@ -83,4 +83,37 @@ test('remove worker',function(t){
 
   t.ok(!friend.workers[__dirname+'/workers/b.js'],'should not have any data for b because it is removed.');
 
+});
+
+
+test('refork workers',function(t){
+
+  var friend = forkfriend({respawnInterval:1});
+  var messages = 0;;
+  var pids = [];
+
+  friend.on('worker',function(){
+    messages++;
+    if(messages == 3){
+      pids.push(friend.workers[__dirname+'/workers/b.js'].process[0].pid);
+      pids.push(friend.workers[__dirname+'/workers/b.js'].process[1].pid);
+      console.log('pids> ',pids);
+      // refork
+      friend.refork(__dirname+'/workers/b.js');
+
+    } else if(messages == 5){
+
+      t.equals(friend.workers[__dirname+'/workers/b.js'].process.length,2,'should have reforked correct numbers of processes');
+      t.equals(pids.indexOf(friend.workers[__dirname+'/workers/b.js'].process[0].pid),-1,'reforked process should not have the old PID');
+      t.equals(pids.indexOf(friend.workers[__dirname+'/workers/b.js'].process[1].pid),-1,'reforked process should not have the old PID');
+
+      friend.stop();
+      t.end();
+    }
+    console.log('worker message ',messages);
+  });
+
+  friend.add(__dirname+'/workers/a.js');
+  friend.add(__dirname+'/workers/b.js',2);
+  
 });

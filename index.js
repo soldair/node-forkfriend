@@ -173,6 +173,7 @@ methods = {
         return;
       }
       var cp = fork(worker,args);
+
       z.workers[worker].process.push(cp);
 
       var removed = false;
@@ -184,11 +185,16 @@ methods = {
       });
 
       var handleExit = function(code){
+        // the there is a bad exit code even if the child has run exit cleanup already i want to let you know.
+        if(code) z.emit('worker-error',code,worker,args,cp);
         if(removed) return false;
         removed = true;
-        
+
+        if(!z.workers[worker]) return;
+
         var i = z.workers[worker].process.indexOf(cp);
         z.workers[worker].process.splice(i,1);
+
         z.emit('worker-exit',code,worker,args,cp);
 
         z._childDrained(worker,null);
@@ -201,6 +207,7 @@ methods = {
         //if i cant talk to it im just gonna kill it
         //child can handle and not die if it really wants
         z.emit('worker-disconnect',worker,args,cp);
+
         cp.kill();
         handleExit(0);
       });
@@ -264,7 +271,8 @@ methods = {
 
     if(i === -1) return;
 
-    z.workers[key].process.splice(i,1);
+    if(z.workers[key]) z.workers[key].process.splice(i,1);
+
     process.nextTick(function(){
       cp.kill();
     });
@@ -274,15 +282,13 @@ methods = {
   },
   stop:function(){
     var z = this;
+
     if(this.stopped) return;
     this.stopped = true;
     Object.keys(this.workers).forEach(function(k){
         var w = z.workers[k];
         w.process.forEach(function(cp,i){
-          w.process.splice(i,1);
-          process.nextTick(function(){
-            cp.kill();
-          });
+          z.remove(k,w.runCount);
         });
     });
 
@@ -292,8 +298,10 @@ methods = {
     if(!this.ended) this.emit('end');    
   },
   refork:function(key,cp){
+
     var args = this.workers[key].args;
     var procs = this.workers[key].runCount;
+
     this.remove(key,procs);
     this.add(key,args,procs);
   },
