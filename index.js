@@ -172,7 +172,9 @@ methods = {
         z.emit('worker-aborted',worker);
         return;
       }
-      var cp = fork(worker,args);
+      //worker.options= {options: {execArgv: ["--debug-brk=56000"]}}; 
+      //worker.add.call(worker, "worker.js", 1);
+      var cp = fork(worker,args, z.options);
 
       z.workers[worker].process.push(cp);
 
